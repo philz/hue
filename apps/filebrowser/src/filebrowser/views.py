@@ -26,6 +26,7 @@ import posixpath
 import stat as stat_module
 import urllib
 import os
+import simplejson
 
 from django.core import urlresolvers
 from django.http import Http404, HttpResponse, HttpResponseNotModified
