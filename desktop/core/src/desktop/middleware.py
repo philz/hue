@@ -397,3 +397,24 @@ class DatabaseLoggingMiddleware(object):
           for query in getattr(django.db.connection, "queries", []):
             self.DATABASE_LOG.info("(%s) %s" % (query["time"], query["sql"]))
     return response
+
+class RecordingMiddleware(object):
+  """
+  Useful for debugging, sort of, stores a copy
+  of all requests going out of the system.
+  """
+  def __init__(self):
+    self.dir = "/tmp/recording"
+    print self.dir
+
+  def process_response(self, request, response):
+    import os
+    if isinstance(response.content, basestring):
+      path = os.path.join(self.dir, request.path[1:])
+      if os.path.isdir(path):
+        path += "index.html"
+      if not os.path.exists(os.path.dirname(path)):
+        os.makedirs(os.path.dirname(path))
+      f = open(path, "w")
+      f.write(response.content)
+    return response

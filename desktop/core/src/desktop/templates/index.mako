@@ -25,7 +25,7 @@
 	<link rel="stylesheet" href="/static/css/windows.css" type="text/css" media="screen" charset="utf-8">
 	<link rel="stylesheet" href="/static/css/desktop.css" type="text/css" media="screen" charset="utf-8">
 
-  <script src="/depender/build?client=true&require=dbug,DomReady,Cookie,Element.Dimensions,Element.Style"></script>
+  <script src="/depender/build?client=true&exclude=CCS.JobBrowser.Poller&require=dbug,DomReady,Cookie,Element.Dimensions,Element.Style&all=true"></script>
   <!--[if IE 8]>
       <script>
           window.ie8 = true;

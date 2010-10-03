@@ -28,46 +28,47 @@ if (!CCS.Dock) {
 } else {
 	//adding a hidden ability to toggle the job poller
 	//the console statements for the ajax requests are distracting
-	$('ccs-dock-status').addEvent('dblclick', function(){
-		CCS.Dock[CCS.Dock.pollingJobs ? 'stopJobsPoll' : 'startJobsPoll']();
-		Cookie.write('activateJobsPoller', CCS.Dock.pollingJobs);
-		if (!CCS.Dock.pollingJobs) CCS.Dock.statusContent.set('html', 'poller paused');
-	});
-	//poll for new jobs from the job tracker
-	//when the status notes are clicked, launch a Job Browser instance with that view
-	CCS.Dock.statusContent.addEvents({
-		'click:relay(a)': function(e, a){
-			e.preventDefault();
-			CCS.Desktop.launch(a.get('target'), [a.get('href')]);
-		}
-	});
-	
-
-	$extend(CCS.Dock, {
-		/*
-			loads the job data into the dock
-		*/
-		loadJobs: function(){
-			if (CCS.Dock.pollingJobs) {
-				CCS.Dock.statusContent.set('load', {
-					onCcsError: CCS.Dock.stopJobsPoll,
-					onFailure: CCS.Dock.stopJobsPoll,
-					onSuccess: CCS.Dock.loadJobs.delay(5000),
-					url: '/status_bar/'
-				}).load();
+	window.addEvent('domready', function() {
+		$('ccs-dock-status').addEvent('dblclick', function(){
+			CCS.Dock[CCS.Dock.pollingJobs ? 'stopJobsPoll' : 'startJobsPoll']();
+			Cookie.write('activateJobsPoller', CCS.Dock.pollingJobs);
+			if (!CCS.Dock.pollingJobs) CCS.Dock.statusContent.set('html', 'poller paused');
+		});
+		//poll for new jobs from the job tracker
+		//when the status notes are clicked, launch a Job Browser instance with that view
+		CCS.Dock.statusContent.addEvents({
+			'click:relay(a)': function(e, a){
+				e.preventDefault();
+				CCS.Desktop.launch(a.get('target'), [a.get('href')]);
 			}
-		},
-		startJobsPoll: function(){
-			dbug.log('starting job poller');
-			CCS.Dock.pollingJobs = true;
-			CCS.Dock.loadJobs();
-		},
-		stopJobsPoll: function(){
-			dbug.log('stopping job poller');
-			CCS.Dock.statusContent.set('html', 'poller paused');
-			CCS.Dock.pollingJobs = false;
-		}	
+		});
+		
+		$extend(CCS.Dock, {
+			/*
+				loads the job data into the dock
+			*/
+			loadJobs: function(){
+				if (CCS.Dock.pollingJobs) {
+					CCS.Dock.statusContent.set('load', {
+						onCcsError: CCS.Dock.stopJobsPoll,
+						onFailure: CCS.Dock.stopJobsPoll,
+						onSuccess: CCS.Dock.loadJobs.delay(5000),
+						url: '/status_bar/'
+					}).load();
+				}
+			},
+			startJobsPoll: function(){
+				dbug.log('starting job poller');
+				CCS.Dock.pollingJobs = true;
+				CCS.Dock.loadJobs();
+			},
+			stopJobsPoll: function(){
+				dbug.log('stopping job poller');
+				CCS.Dock.statusContent.set('html', 'poller paused');
+				CCS.Dock.pollingJobs = false;
+			}	
+		});
+		//whenever our poller gets an error, just stop polling
+		CCS.Dock.statusContent.get('load').addEvent('ccsError', CCS.Dock.stopJobsPoll);
 	});
-	//whenever our poller gets an error, just stop polling
-	CCS.Dock.statusContent.get('load').addEvent('ccsError', CCS.Dock.stopJobsPoll);
 }

@@ -106,6 +106,7 @@ MIDDLEWARE_CLASSES = [
     'desktop.middleware.ExceptionMiddleware',
     'desktop.middleware.ClusterMiddleware',
     'desktop.middleware.AppSpecificMiddleware',
+    'desktop.middleware.RecordingMiddleware'
 
     # 'debug_toolbar.middleware.DebugToolbarMiddleware'
 ]
