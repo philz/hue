@@ -49,7 +49,7 @@ def check_host_port(host, port):
 
   return False
 
-def check_blacklist(host, port, path):
+def check_blacklist(host, port, path, query_string):
   """
   Return true if this host:port path combo is allowed to be proxied.
   """
@@ -65,6 +65,8 @@ def check_blacklist(host, port, path):
   canon_url = "%s:%s/%s" % (host, port, '/'.join(path_elems))
   if has_trailing_slash:
     canon_url += '/'
+  if query_string is not None and query_string != "":
+    canon_url += "?" + query_string
 
   for regexp in blacklist:
     if regexp.match(canon_url):
@@ -83,7 +85,7 @@ def proxy(request, host, port, path):
     raise MessageException(
       ("%s:%d is not whitelisted for reverse proxying, nor a daemon that Cluster Health " +
        "is aware of.  Contact your administrator.") % (host, port))
-  if not check_blacklist(host, port, path):
+  if not check_blacklist(host, port, path, request.META.get("QUERY_STRING")):
     raise MessageException(
       "Access to %s:%s%s is blocked. Contact your administrator." % (host, port, path))
 
