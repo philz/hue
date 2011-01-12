@@ -120,17 +120,21 @@ def test_blacklist():
   client = make_logged_in_client('test')
   finish_confs = [
     proxy.conf.WHITELIST.set_for_testing(r"localhost:\d*"),
-    proxy.conf.BLACKLIST.set_for_testing(r"localhost:\d*/(foo|bar)/fred/"),
+    proxy.conf.BLACKLIST.set_for_testing([r"localhost:\d*/(foo|bar)/fred/", r"localhost:\d*/.*[?]bad"]),
   ]
   try:
     # Request 1: Hit the blacklist
     resp = client.get('/proxy/localhost/1234//foo//fred/')
     assert_true("is blocked" in resp.content)
 
+    # Request 1a: Hit the blacklist with a query string
+    resp = client.get('/proxy/localhost/1234/', dict(bad="13"))
+    assert_true("is blocked" in resp.content)
+
     # Request 2: This is not a match
     httpd, finish = run_test_server()
     try:
-      resp = client.get('/proxy/localhost/%s//foo//fred_ok' % (httpd.server_port,))
+      resp = client.get('/proxy/localhost/%s//foo//fred_ok' % (httpd.server_port,), dict(good="14"))
       assert_true("Hello there" in resp.content)
     finally:
       finish()
