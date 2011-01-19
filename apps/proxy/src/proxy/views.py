@@ -85,7 +85,17 @@ def proxy(request, host, port, path):
     raise MessageException(
       ("%s:%d is not whitelisted for reverse proxying, nor a daemon that Cluster Health " +
        "is aware of.  Contact your administrator.") % (host, port))
-  if not check_blacklist(host, port, path, request.META.get("QUERY_STRING")):
+
+  # Concatenate POST and get strings.
+  query_string = request.META.get("QUERY_STRING")
+  post_data = None
+  if request.method == 'POST':
+    post_data = request.POST.urlencode()
+    if query_string:
+      query_string = query_string + "&" + post_data
+    else:
+      query_string = post_data
+  if not check_blacklist(host, port, path, query_string):
     raise MessageException(
       "Access to %s:%s%s is blocked. Contact your administrator." % (host, port, path))
 
@@ -97,10 +107,6 @@ def proxy(request, host, port, path):
                     request.META.get("QUERY_STRING"), 
                     None))
   LOGGER.info("Retrieving %s." % url)
-  if request.method == 'POST':
-    post_data = request.POST.urlencode()
-  else:
-    post_data = None
   data = urlopen(url, data=post_data)
   content_type = data.headers.get("content-type", "text/plain")
   if not re.match(r'^text/html\s*(?:;.*)?$', content_type):
