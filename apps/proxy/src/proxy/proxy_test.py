@@ -131,6 +131,10 @@ def test_blacklist():
     resp = client.get('/proxy/localhost/1234/', dict(bad="13"))
     assert_true("is blocked" in resp.content)
 
+    # Request 1b: Hit blacklist with query string in POST
+    resp = client.post('/proxy/localhost/1234/', dict(bad="13"))
+    assert_true("is blocked" in resp.content)
+
     # Request 2: This is not a match
     httpd, finish = run_test_server()
     try:
