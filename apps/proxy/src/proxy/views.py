@@ -65,7 +65,7 @@ def check_blacklist(host, port, path, query_string):
   canon_url = "%s:%s/%s" % (host, port, '/'.join(path_elems))
   if has_trailing_slash:
     canon_url += '/'
-  if query_string is not None and query_string != "":
+  if query_string:
     canon_url += "?" + query_string
 
   for regexp in blacklist:
