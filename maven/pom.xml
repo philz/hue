@@ -41,12 +41,11 @@
     </license>
   </licenses>
 
-
   <properties>
-    <hadoop.version>0.20.2-CDH3B4-SNAPSHOT</hadoop.version>
+    <hadoop.version>0.20.2-cdh3u0</hadoop.version>
     <slf4j.version>1.6.1</slf4j.version>
     <commons-logging.version>1.0.4</commons-logging.version>
-    <hive.version>0.6.0-CDH3B4-SNAPSHOT</hive.version>
+    <hive.version>0.7.0-cdh3u0</hive.version>
   </properties>
 
   <organization>
@@ -75,6 +74,11 @@
       <dependency>
         <groupId>org.apache.hadoop.hive</groupId>
         <artifactId>hive-exec</artifactId>
+        <version>${hive.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.hadoop.hive</groupId>
+        <artifactId>hive-common</artifactId>
         <version>${hive.version}</version>
       </dependency>
       <dependency>
@@ -126,6 +130,12 @@
         <artifactId>libthrift</artifactId>
         <version>0.5.0-cdh</version>
       </dependency>
+      <dependency>
+        <groupId>org.apache.thrift</groupId>
+        <artifactId>libfb303</artifactId>
+        <version>0.5.0-cdh</version>
+      </dependency>
+
 
     </dependencies>
   </dependencyManagement>
@@ -133,7 +143,7 @@
   <repositories>
     <repository>
       <id>cloudera.repos</id>
-      <url>https://repository.cloudera.com/content/groups/public</url>
+      <url>https://repository.cloudera.com/content/groups/cdh-releases-rcs</url>
       <name>Cloudera Public Repositories</name>
       <snapshots>
         <enabled>false</enabled>

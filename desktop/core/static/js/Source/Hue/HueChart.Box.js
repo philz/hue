@@ -60,7 +60,7 @@ HueChart.Box = new Class({
 				dates: {x: false, y: false}, //is the data in an axis a date ? 
 				dateSpans:{x: null}, //if an axis is a date, what time span should the tick marks for that axis be shown in
 				positionIndicator: false, //should the position indicator be shown ?
-				ticks: {x: false, y: false, orientation: 'absolute'}, //should tick marks be shown ?
+				ticks: {x: false, y: false, orientation: 'absolute', shortenY: true}, //should tick marks be shown ?
 					//Orientation options are:
 						// 'absolute' -- meaning they are actual dates
 						// 'relative' -- meaning they are timespans from the first date
@@ -71,7 +71,7 @@ HueChart.Box = new Class({
 					'second': "%I:%M %p",
 					'minute': "%I:%M %p",
 					'hour': "%I %p",
-					'day': "%m %D",
+					'day': "%b %D",
 					'month': "%m",
 					'year': "%Y"
 				},
@@ -210,8 +210,8 @@ HueChart.Box = new Class({
 		//Set the scales which will be used to convert data values into positions for graph objects
 		setScales: function(vis) {
 				//Get the minimum and maximum x values.
-				var xMin = this.getData(true).getMinValue(this.xProperty);
-				var xMax = this.getData(true).getMaxValue(this.xProperty);
+				var xMin = this.hasMetadata('chartStartTime') ? this.metadata.chartStartTime : this.getData(true).getMinValue(this.xProperty);
+				var xMax = this.hasMetadata('chartEndTime') ? this.metadata.chartEndTime : this.getData(true).getMaxValue(this.xProperty);
 				//Get the maximum of the values that are to be graphed
 				var maxValue = this.getData(true).getMaxValue(this.series);
 				this.xScale = pv.Scale.linear(xMin, xMax).range(this.options.leftPadding, this.width - this.options.rightPadding);
@@ -257,7 +257,12 @@ HueChart.Box = new Class({
 						//Create tick array.
 						var tickOrientation = this.options.ticks.orientation;
 						var tickMethod = 'get' + tickOrientation.capitalize() + 'Ticks';
-						var xTicks = (this.options.dates.x ? this.getData(true)[tickMethod](10, this.dateProperty) : this.xScale.ticks(7));
+						var chartStart = null, chartEnd = null;
+						if (this.hasMetadata()) {
+							chartStart = this.metadata.chartStartTime;
+							chartEnd = this.metadata.chartEndTime;
+						}
+						var xTicks = (this.options.dates.x ? this.getData(true)[tickMethod](10, this.dateProperty, chartStart, chartEnd) : this.xScale.ticks(7));
 						var getValue = getXValueFn(this.options.dates.x ? this.xProperty : null);
 						var getTickLabel = this._getXTickDisplayFn(xTicks, tickOrientation, getValue);
 						//Create rules (lines intended to denote scale)
@@ -283,24 +288,35 @@ HueChart.Box = new Class({
 						//In some box-style charts, there is a need to have a different scale for yTicks and for y values.
 						//If there is a scale defined for yTicks, use it, otherwise use the standard yScale.
 						var tickScale = this.yScaleTicks || this.yScale;
+						var ticks = tickScale.ticks(yTickCount > 1 ? yTickCount : 2);
+						//Convert ticks to tickObject containing value and label
+						ticks = ticks.map(function(tick) {
+							var tickObject = {};
+							tickObject.value = tick;
+							var label = tick;
+							if (this.options.yType == 'bytes') {
+								label = tick.convertFileSize();
+							} else {
+								if(this.options.ticks.shortenY) label = tick.shortString();
+							};
+							tickObject.label = label;
+							return tickObject;
+						}.bind(this));
 						//Create rules
 						vis.add(pv.Rule)
 								//Always show at least two ticks.
 								//tickScale.ticks returns an array of values which are evenly spaced to be used as tick marks.
-								.data(tickScale.ticks(yTickCount > 1 ? yTickCount : 2))
+								.data(ticks)
 								//The left side of the rule should be at leftPadding pixels.
 								.left(this.options.leftPadding)
 								//The bottom of the rule should be at the tickScale.ticks value scaled to pixels.
-								.bottom(function(d) {return tickScale(d);}.bind(this))
+								.bottom(function(tick) {return tickScale(tick.value);}.bind(this))
 								//The width of the rule should be the width minus the hoizontal padding.
 								.width(this.width - this.options.leftPadding - this.options.rightPadding + 1)
 								.strokeStyle(this.options.tickColor)
 								//Add label to the left which shows the number of bytes.
 								.anchor("left").add(pv.Label)
-										.text(function(d) {
-												if(this.options.yType == 'bytes') return d.convertFileSize();
-												return d;
-										}.bind(this));
+										.text(function(tick) { return tick.label; });
 				}
 		},
 		
@@ -356,13 +372,16 @@ HueChart.Box = new Class({
 				}
 		},
 
+		invertYValue: function(y) {
+			return this.yScale.invert(y);
+		},
+
 		getYRange: function(y, inversionScale) {
-				var scale = inversionScale || this.yScale;
 				var yBuffer = 5; //Pixel buffer for usability.
 				//Must use yValueReverse to reverse the mouse value because drawing happens from the bottom up.  Mouse position is from the top down.
-				var invertedYValue = scale.invert(y);
+				var invertedYValue = this.invertYValue(y);
 				//Since range will be inverted, the array goes from greatest to least initially.
-				var invertedYRange = [scale.invert(y + yBuffer), scale.invert(y - yBuffer)];
+				var invertedYRange = [this.invertYValue(y + yBuffer), this.invertYValue(y - yBuffer)];
 				var yValue = this.yValueReverse(invertedYValue);
 				//Convert the inverted yRange to a non-inverted yRange.
 				var yRange = invertedYRange.map(function(value) { return this.yValueReverse(value); }.bind(this));
@@ -426,9 +445,21 @@ HueChart.Box = new Class({
 				return argArray.map(function(point) {
 						var toGraph = this.adjustToGraph(axis, point);
 						var index = this.getDataIndexFromPoint(axis, toGraph);
-						return { index: index, data: this.getData(true).getObjects()[index] };
+						var pointValue = this.getValueFromPoint(axis, point);
+						return { index: index, data: this.getData(true).getObjects()[index], pointValue: pointValue };
 				}.bind(this));
 				
+		},
+		
+		getValueFromPoint: function(axis, point) {
+			switch (axis) {
+				case 'x':
+					return this.xScale.invert(point);
+					break;
+				case 'y':
+					return this.invertYValue(point);
+					break;
+			}
 		},
 		
 		//Make selection in graph draggable
@@ -559,21 +590,27 @@ HueChart.Box = new Class({
 		
 		//Given a series object, return the value that should be displayed
 		getValueForDisplay: function(seriesObject) {
+			var value = seriesObject.value;
+			var units = "";
 			//If metadata exists
 			if(this.hasMetadata(seriesObject.name)) {
 				var metadata = this.metadata[seriesObject.name];
 				//And amplitude exists in metadata
 				if ($defined(metadata.amplitude)){
-					//Multiply the charting value by amplitude and return
-					return String(seriesObject.value.toInt() * metadata['amplitude']);
+					//Multiply the charting value by amplitude
+					value = seriesObject.value.toFloat() * metadata['amplitude'];
+				}
+				if ($defined(metadata.units)){
+					//Set units to the string
+					units = metadata.units;
 				}
 			} else {
-				//Format bytes properly
+				//Format bytes properly and return
 				if (this.options.yType == 'bytes') {
 					return seriesObject.value.toInt().convertFileSize();
 				}
 			}
-			return String(seriesObject.value);
+			return String(value.round(2)) + " " + units;
 		},
 		//Updates the display of the currently visible tip
 		updatePointValue: function(seriesList) {
@@ -619,6 +656,17 @@ HueChart.Box = new Class({
 						 delete this.tip;
 				}
 		} 
+});
+
+Number.implement('shortString', function() {
+	var numKsToAbbreviation = ['', 'k','m', 'b', 't'];
+	var base = this;
+	var numKs = 0;
+	while (base > 1000) {
+		base /= 1000;
+		numKs++;
+	}
+	return base + numKsToAbbreviation[numKs];
 });
 })();
 
